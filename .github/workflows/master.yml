@@ -1,34 +1,46 @@
-name: Laravel CI Pipeline
+name: Deploy Laravel to cPanel (FTP + Migration)
 
 on:
   push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
+    branches:
+      - master
 
 jobs:
-  laravel-tests:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: 🚚 Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup PHP
+      - name: 🐘 Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: 8.2
           extensions: mbstring, bcmath, pdo, mysql
-          coverage: none
 
-      - name: Install Composer Dependencies
-        run: composer install --no-progress --prefer-dist --optimize-autoloader
+      - name: 📦 Install Composer Dependencies
+        run: composer install --no-dev --prefer-dist --optimize-autoloader
 
-      - name: Copy .env
-        run: cp .env.example .env
+      - name: 📁 Prepare Laravel
+        run: |
+          cp .env.example .env
+          php artisan key:generate
 
-      - name: Generate Key
-        run: php artisan key:generate
+      - name: 🚀 Deploy to cPanel via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          # server-dir: /public_html/your-project/
 
-      - name: Run Tests
-        run: php artisan test
+      # - name: 🧬 Run Database Migration (Remote)
+      #   uses: appleboy/ssh-action@v1.0.3
+      #   with:
+      #     host: ${{ secrets.SSH_HOST }}
+      #     username: ${{ secrets.SSH_USER }}
+      #     password: ${{ secrets.SSH_PASSWORD }}
+      #     script: |
+      #       cd public_html/your-project
+      #       php artisan migrate --force
